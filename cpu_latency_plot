@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+
+import matplotlib.pyplot as plt
+from matplotlib import colormaps as cmaps
+import numpy as np
+import sys, getopt
+from pathlib import Path
+
+def main(argv):
+  inputfile = None
+  outputfile = None
+  title = None
+
+  help = 'plot -i <csvfile> -o <outputfile> -t <title>'
+  try:
+    opts, args = getopt.getopt(argv,"hi:o:t:",["ifile=","ofile=","title="])
+    for opt, arg in opts:
+      if opt == '-h':
+          print(help)
+          sys.exit()
+      elif opt in ("-i", "--ifile"):
+          inputfile = Path(arg)
+      elif opt in ("-o", "--ofile"):
+          outputfile = arg
+      elif opt in ("-t", "--title"):
+          title = arg
+  except getopt.GetoptError as err:
+      print(err)  # will print something like "option -a not recognized"
+      print(help)
+      sys.exit(2)
+
+  if inputfile is None:
+    print (help)
+    sys.exit()
+
+  if not outputfile:
+    outputfile = inputfile.with_suffix('.png')
+
+  data = np.genfromtxt(inputfile, delimiter=",")
+
+  if (np.isnan(data[np.triu_indices(data.shape[0], 1)]).all()):
+    data = np.tril(data) + np.tril(data).transpose()
+
+  vmin = np.nanmin(data)
+  vmax = np.nanmax(data)
+  black_at = (vmin+3*vmax)/4
+
+  isnan = np.isnan(data)
+
+  plt.rcParams['xtick.bottom'] = plt.rcParams['xtick.labelbottom'] = False
+  plt.rcParams['xtick.top'] = plt.rcParams['xtick.labeltop'] = True
+
+  figsize = np.array(data.shape)*0.3 + np.array([6,1])
+  fig, ax = plt.subplots(figsize=figsize, dpi=130)
+  fig.patch.set_facecolor('w')
+
+  plt.imshow(np.full_like(data, 0.7), vmin=0, vmax=1, cmap = 'gray')
+  plt.imshow(data, cmap = cmaps['viridis'], vmin=vmin, vmax=vmax)
+
+  fontsize = 9 if vmax >= 100 else 10
+
+  for (i,j) in np.ndindex(data.shape):
+      t = "" if isnan[i,j] else f"{m[i,j]:.1f}" if vmax < 10.0 else f"{data[i,j]:.0f}"
+      c = "w" if data[i,j] < black_at else "k"
+      plt.text(j, i, t, ha="center", va="center", color=c, fontsize=fontsize)
+
+  plt.xticks(np.arange(data.shape[1]), labels=[f"{i+1}" for i in range(data.shape[1])], fontsize=9)
+  plt.yticks(np.arange(data.shape[0]), labels=[f"CPU {i+1}" for i in range(data.shape[0])], fontsize=9)
+
+  plt.tight_layout()
+
+  title = "{}Core-to-core latency".format(f"{title}\n" if title else "")
+  plt.title(f"{title}\n" +
+            f"Min={vmin:0.1f}ns Median={np.nanmedian(data):0.1f}ns Max={vmax:0.1f}ns",
+            fontsize=11, linespacing=1.5)
+
+  plt.savefig(outputfile, bbox_inches='tight')
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
