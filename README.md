@@ -10,16 +10,16 @@ _Inspired by [`core-to-core-latency`](https://github.com/nviennot/core-to-core-l
 ```
 USAGE: cpu_latency [options]
 
-Measures average the time (ns) that it takes to send/receive a Compare-And-Swap (CAS) message among all the cores.
+Measures average the time (ns) that it takes to send/receive a Compare-And-Swap (CAS) message among all the cores
 The results are streamed to 'stdout' as a comma-separated values (CSV) format.
 
 OPTIONS:
 
 -rt, --round-trips   <int>   Number of times to send and receive messages from core A to core B              (Default: 1000)
--r,  --repeat        <int>   Number of times to repeat the experiment per core pair                          (Default: 300)
+-r,  --repeat        <int>   Number of times to repeat the experiment per core                               (Default: 300)
 -s,  --symmetric     <bool>  Whether to measure ping-pong latency from core A to core B but not the oposite  (Default: true)
+     --randomize     <bool>  Whether to randomize the order of cores to measure                              (Default: true)
 -h,  --help                  Display available options
-
 ```
 
 ### Build

@@ -76,5 +76,7 @@ def main(argv):
 
   plt.savefig(outputfile, bbox_inches='tight')
 
+  plt.figure()
+
 if __name__ == "__main__":
    main(sys.argv[1:])
