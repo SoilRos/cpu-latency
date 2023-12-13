@@ -4,7 +4,6 @@
 #include <atomic>
 #include <charconv>
 #include <chrono>
-#include <memory_resource>
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -178,7 +177,7 @@ main(int argc, char** argv)
         auto obj = hwloc_get_obj_by_depth(topology, depth, i);
         // allocate memory bound to cpu i
         auto ptr = hwloc_alloc_membind_policy(topology,
-                                                sizeof(std::atomic_size_t),
+                                                64,
                                                 obj->cpuset,
                                                 HWLOC_MEMBIND_BIND,
                                                 0);
@@ -202,7 +201,12 @@ main(int argc, char** argv)
           auto obj = hwloc_get_obj_by_depth(topology, depth, i);
           if (hwloc_set_cpubind(topology, obj->cpuset, HWLOC_CPUBIND_THREAD))
             throw;
-          data_ptr = ::new (storage[{i,j}]) std::atomic_size_t();
+          auto ptr = storage[{i,j}];
+          std::size_t sz = 64;
+          ptr = std::align(alignof(std::atomic_size_t), sizeof(std::atomic_size_t), ptr, sz);
+          if (not ptr)
+            throw;
+          data_ptr = ::new (ptr) std::atomic_size_t();
             *data_ptr = std::numeric_limits<std::size_t>::max();
             sync.wait(0);
             std::size_t ping{ 0 };
@@ -256,7 +260,7 @@ main(int argc, char** argv)
   pong_t.join();
 
   for (auto [i, j] : cpus)
-    hwloc_free(topology, storage[{i,j}], sizeof(std::atomic_size_t));
+    hwloc_free(topology, storage[{i,j}], 64);
 
   hwloc_topology_destroy(topology);
 
