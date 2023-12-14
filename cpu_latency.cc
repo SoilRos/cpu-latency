@@ -1,24 +1,33 @@
 #include <hwloc.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <charconv>
 #include <chrono>
 #include <iostream>
+#include <map>
 #include <memory>
+#include <new>
 #include <numeric>
 #include <optional>
+#include <random>
 #include <thread>
 #include <type_traits>
 #include <vector>
-#include <map>
-#include <array>
-#include <random>
 
 std::size_t round_trips = 1000;
 std::size_t repeat = 15;
 bool symmetric = true;
 bool randomize = true;
+
+#ifdef __cpp_lib_hardware_interference_size
+    using std::hardware_constructive_interference_size;
+#else
+    constexpr std::size_t hardware_constructive_interference_size = 64;
+#endif
+
+static_assert(hardware_constructive_interference_size >= alignof(std::atomic_size_t));
 
 class Barrier
 {
@@ -137,7 +146,7 @@ main(int argc, char** argv)
         [](const auto& opt) { return opt == "--randomize" or opt == "-r"; });
       opt != cmd_args.end()) {
     if (auto opt_val = std::next(opt); opt_val != cmd_args.end()) {
-      randomize = to_bool(*opt_val).value();;
+      randomize = to_bool(*opt_val).value();
       cmd_args.erase(opt, std::next(opt_val));
     } else {
       throw;
@@ -167,23 +176,23 @@ main(int argc, char** argv)
 
   Barrier sync{ 2 };
 
-  std::map<std::array<std::size_t,2>,void*> storage;
-
-  std::vector<std::array<std::size_t,2>> cpus;
+  std::map<std::array<std::size_t, 2>, void*> storage;
+  std::vector<std::array<std::size_t, 2>> cpus;
   for (std::size_t i = 0; i != cores; ++i)
     for (std::size_t j = 0; j != cores; ++j)
       if (not skip_core(i, j)) {
-        cpus.push_back({i, j});
+        cpus.push_back({ i, j });
         auto obj = hwloc_get_obj_by_depth(topology, depth, i);
         // allocate memory bound to cpu i
-        auto ptr = hwloc_alloc_membind_policy(topology,
-                                                64,
-                                                obj->cpuset,
-                                                HWLOC_MEMBIND_BIND,
-                                                0);
+        auto ptr = hwloc_alloc_membind_policy(
+          topology,
+          hardware_constructive_interference_size * 2,
+          obj->cpuset,
+          HWLOC_MEMBIND_BIND,
+          0);
         if (not ptr)
           throw;
-        storage[{i,j}] = ptr;
+        storage[{ i, j }] = ptr;
       }
 
   std::random_device rd;
@@ -197,61 +206,65 @@ main(int argc, char** argv)
         std::shuffle(std::begin(cpus), std::end(cpus), g);
       sync.wait(0);
       for (auto [i, j] : cpus) {
-          sync.wait(0);
-          auto obj = hwloc_get_obj_by_depth(topology, depth, i);
-          if (hwloc_set_cpubind(topology, obj->cpuset, HWLOC_CPUBIND_THREAD))
-            throw;
-          auto ptr = storage[{i,j}];
-          std::size_t sz = 64;
-          ptr = std::align(alignof(std::atomic_size_t), sizeof(std::atomic_size_t), ptr, sz);
-          if (not ptr)
-            throw;
-          data_ptr = ::new (ptr) std::atomic_size_t();
-            *data_ptr = std::numeric_limits<std::size_t>::max();
-            sync.wait(0);
-            std::size_t ping{ 0 };
-            auto start = std::chrono::high_resolution_clock::now();
-            data_ptr->store(0);
-            for (std::size_t k = 0; k != (2 * round_trips) + 2; k += 2) {
-              ping = k;
-              while (not data_ptr->compare_exchange_strong(
-                ping,
-                ping + 1,
-                std::memory_order_relaxed,
-                std::memory_order_relaxed)) {
-                ping = k;
-              }
-            }
-            if (data_ptr->load() != 2 * round_trips + 1)
-              throw;
-            durations[{i,j}] +=
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-              std::chrono::high_resolution_clock::now() - start);
-          std::destroy_at(data_ptr);
+        sync.wait(0);
+        auto obj = hwloc_get_obj_by_depth(topology, depth, i);
+        if (hwloc_set_cpubind(topology, obj->cpuset, HWLOC_CPUBIND_THREAD))
+          throw;
+        auto ptr = storage[{ i, j }];
+        std::size_t sz = hardware_constructive_interference_size * 2;
+        ptr = std::align(hardware_constructive_interference_size,
+                         sizeof(std::atomic_size_t),
+                         ptr,
+                         sz);
+        if (not ptr)
+          throw;
+        data_ptr = ::new (ptr) std::atomic_size_t();
+        *data_ptr = std::numeric_limits<std::size_t>::max();
+        sync.wait(0);
+        std::size_t ping{ 0 };
+        auto start = std::chrono::high_resolution_clock::now();
+        data_ptr->store(0);
+        for (std::size_t k = 0; k != (2 * round_trips) + 2; k += 2) {
+          ping = k;
+          while (
+            not data_ptr->compare_exchange_strong(ping,
+                                                  ping + 1,
+                                                  std::memory_order_relaxed,
+                                                  std::memory_order_relaxed)) {
+            ping = k;
+          }
+        }
+        if (data_ptr->load() != 2 * round_trips + 1)
+          throw;
+        durations[{ i, j }] +=
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::high_resolution_clock::now() - start);
+        std::destroy_at(data_ptr);
       }
     }
   } };
 
   std::thread pong_t{ [&]() {
     for (std::size_t s = 0; s != repeat; ++s) {
-      sync.wait(1); sync.wait(1);
+      sync.wait(1);
+      sync.wait(1);
       for (auto [i, j] : cpus) {
-          sync.wait(1);
-          auto obj = hwloc_get_obj_by_depth(topology, depth, j);
-          if (hwloc_set_cpubind(topology, obj->cpuset, HWLOC_CPUBIND_THREAD))
-            throw;
-          sync.wait(1);
-          std::size_t pong{ 1 };
-          for (std::size_t k = 0; k != (2 * round_trips); k += 2) {
+        sync.wait(1);
+        auto obj = hwloc_get_obj_by_depth(topology, depth, j);
+        if (hwloc_set_cpubind(topology, obj->cpuset, HWLOC_CPUBIND_THREAD))
+          throw;
+        sync.wait(1);
+        std::size_t pong{ 1 };
+        for (std::size_t k = 0; k != (2 * round_trips); k += 2) {
+          pong = k + 1;
+          while (
+            not data_ptr->compare_exchange_strong(pong,
+                                                  pong + 1,
+                                                  std::memory_order_relaxed,
+                                                  std::memory_order_relaxed)) {
             pong = k + 1;
-            while (not data_ptr->compare_exchange_strong(
-              pong,
-              pong + 1,
-              std::memory_order_relaxed,
-              std::memory_order_relaxed)) {
-              pong = k + 1;
-            }
           }
+        }
       }
     }
   } };
@@ -260,13 +273,14 @@ main(int argc, char** argv)
   pong_t.join();
 
   for (auto [i, j] : cpus)
-    hwloc_free(topology, storage[{i,j}], 64);
+    hwloc_free(
+      topology, storage[{ i, j }], hardware_constructive_interference_size * 2);
 
   hwloc_topology_destroy(topology);
 
   for (std::size_t i = 0; i != cores; ++i) {
     for (std::size_t j = 0; j != cores; ++j) {
-      if (auto it = durations.find({i,j}); it != durations.end() )
+      if (auto it = durations.find({ i, j }); it != durations.end())
         std::cout << (it->second.count() / (2. * round_trips * repeat));
       std::cout << (j + 1 == cores ? "\n" : ",");
     }
