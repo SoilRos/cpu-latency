@@ -16,7 +16,7 @@ The results are streamed to 'stdout' as a comma-separated values (CSV) format.
 OPTIONS:
 
 -rt, --round-trips   <int>   Number of times to send and receive messages from core A to core B              (Default: 1000)
--r,  --repeat        <int>   Number of times to repeat the experiment per core                               (Default: 300)
+-r,  --repeat        <int>   Number of times to repeat the experiment per core                               (Default: 15)
 -s,  --symmetric     <bool>  Whether to measure ping-pong latency from core A to core B but not the oposite  (Default: true)
      --randomize     <bool>  Whether to randomize the order of cores to measure                              (Default: true)
 -h,  --help                  Display available options

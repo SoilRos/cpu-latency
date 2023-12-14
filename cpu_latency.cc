@@ -16,7 +16,7 @@
 #include <random>
 
 std::size_t round_trips = 1000;
-std::size_t repeat = 300;
+std::size_t repeat = 15;
 bool symmetric = true;
 bool randomize = true;
 
