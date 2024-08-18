@@ -55,18 +55,28 @@ Then you can run the script to measure the latency and plot it with the utility 
 ./cpu_latency_plot -i cpu_latency.csv -o cpu_latency.png
 ```
 
-## Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz
+## Why do we need another program for this?
+Compared to other programs, this program can:
+
+* Take into account NUMA domains ([main motivation](https://github.com/nviennot/core-to-core-latency/issues/97))
+* Randomize order of CPUs to benchmark (it makes a difference!)
+* Parameterize the number of round-trips and experiment repetitions
+* Choose between symmetric and non-symmetric benchmarks
+
+## Examples
+
+### Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz
 
 ![image](results/intel_core_i7_8565u.png)
 
-## Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz - Dual Socket
+### Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz - Dual Socket
 
 ![image](results/intel_xeon_silver_4114.png)
 
-## Intel(R) Xeon(R) CPU E5-2698 v3 @ 2.30GHz - Dual Socket
+### Intel(R) Xeon(R) CPU E5-2698 v3 @ 2.30GHz - Dual Socket
 
 ![image](results/intel_xeon_e5_2698_v3.png)
 
-## AMD EPYC 7713 64-Core - Dual Socket
+### AMD EPYC 7713 64-Core - Dual Socket
 
 ![image](results/amd_epyc_7713.png)
