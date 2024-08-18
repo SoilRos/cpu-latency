@@ -73,7 +73,7 @@ main(int argc, char** argv)
         std::end(cmd_args),
         [](const auto& opt) { return opt == "--help" or opt == "-h"; });
       opt != cmd_args.end()) {
-    std::cout << "USAGE: cpu_latency [options]\n\n"
+    std::cout << "USAGE: cpu-latency [options]\n\n"
               << "Measures average the time (ns) that it takes to send/receive a Compare-And-Swap (CAS) message among all the cores\n"
               << "The results are streamed to 'stdout' as a comma-separated values (CSV) format.\n\n"
               << "OPTIONS:\n\n"

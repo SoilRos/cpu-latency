@@ -8,7 +8,7 @@ _Inspired by [`core-to-core-latency`](https://github.com/nviennot/core-to-core-l
 ### Usage
 
 ```
-USAGE: cpu_latency [options]
+USAGE: cpu-latency [options]
 
 Measures average the time (ns) that it takes to send/receive a Compare-And-Swap (CAS) message among all the cores
 The results are streamed to 'stdout' as a comma-separated values (CSV) format.
@@ -34,7 +34,7 @@ apt-get install libhwloc-dev
 To build, just configure cmake and build its targets:
 
 ```
-mkdir cpu_latency/build && cd cpu_latency/build
+mkdir cpu-latency/build && cd cpu-latency/build
 cmake ..
 make
 ```
@@ -51,8 +51,8 @@ python3 -m pip install -U numpy
 Then you can run the script to measure the latency and plot it with the utility python script
 
 ```
-./cpu_latency > cpu_latency.csv
-./cpu_latency_plot -i cpu_latency.csv -o cpu_latency.png
+./cpu-latency > cpu-latency.csv
+./cpu-latency-plot -i cpu-latency.csv -o cpu-latency.png
 ```
 
 ## Why do we need another program for this?

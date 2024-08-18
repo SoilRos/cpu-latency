@@ -31,7 +31,7 @@
 
 # This file was originally part of core-to-core-latency by Nicolas Viennot.
 #
-# Modifications have been made to this file by the cpu_latency project.
+# Modifications have been made to this file by the cpu-latency project.
 #
 # The modified version is licensed under the MIT License.
 # See the LICENSE file in the root directory of this source tree for more information.
