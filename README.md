@@ -35,8 +35,8 @@ To build, just configure cmake and build its targets:
 
 ```
 mkdir cpu-latency/build && cd cpu-latency/build
-cmake ..
-make
+CMAKE_BUILD_TYPE="Release" cmake ..
+cmake --build .
 ```
 
 ### Plot
